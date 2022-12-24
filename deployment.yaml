@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: web-deployment
+  labels: 
+    app: web
+spec:
+  selector:
+    matchLabels:
+      app: web 
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1  
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: mindbox
+# Вашего имеджа у меня нет, оставил пустым    
+        image: 
+        ports:
+          - containerPort: 80      
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: / 
+            port: 80 
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+          initialDelaySeconds: 10
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 10 
+          successThreshold: 1
+          timeoutSeconds: 1
+          initialDelaySeconds: 10
+        resources:  
+          requests: 
+            cpu: 100m
+            memory: 130Mi
+          limits:
+            memory: 200Mi      
+# Трудности возникли с указанием ресурсов, особенно с cpu          
+# По идее limits желательно ставить всегда, но 'требуется значительно больше ресурсов'  мне ни о чем не говорит  
+      
+---                
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-web
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web-deployment
+  minReplicas: 1ls
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: memory 
+      targetAverageValue: 130Mi
+
+# Предположил, что автоскейлер может решить проблему с излишним потреблением ресурсов ночью
+# Проигнорировал информацию, что у вас мультизональный кластер, так как в 'Хотим' ничего про это сказано не было
+# Разумеется одну реплику мы не сможем разделить на все зоны, но нужно ли иметь 3 пода ночью? Я не знаю.
+# Буду благодарен за любую обратную связь, даже если я не смог справиться с заданием
